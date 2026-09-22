@@ -244,9 +244,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 11375d3fdd71e4533920d6f4b2152527, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArenaMover
-  moveSpeedMultiplier: 6
+  moveSpeedMultiplier: 3.5
   threshold: 0.15
-  maxSpeed: 6
+  maxSpeed: 3.8
   startPos: {x: 0, y: 0, z: 0}
 --- !u!1 &5699849036342120606
 GameObject:

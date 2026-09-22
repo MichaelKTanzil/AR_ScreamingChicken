@@ -23,11 +23,16 @@ public class ARPlacementManager : MonoBehaviour
     private ARPlaneManager    planeManager;
     private static List<ARRaycastHit> hits = new List<ARRaycastHit>();
 
+    public static ARPlacementManager instance;
+
     private bool planeFound  = false;
     private bool arenaPlaced = false;
 
+    public bool IsArenaPlaced() => arenaPlaced;
+
     void Awake()
     {
+        instance = this;
         raycastManager = GetComponent<ARRaycastManager>();
         planeManager   = GetComponent<ARPlaneManager>();
 

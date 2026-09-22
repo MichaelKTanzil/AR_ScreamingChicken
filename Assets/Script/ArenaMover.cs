@@ -5,9 +5,9 @@ public class ArenaMover : MonoBehaviour
     private MicDetection mic;
     
     [Header("Pengaturan Kecepatan")]
-    public float moveSpeedMultiplier = 6f;
+    public float moveSpeedMultiplier = 3.5f;
     public float threshold = 0.15f;
-    public float maxSpeed = 6f;
+    public float maxSpeed = 3.8f;
 
     public Vector3 startPos;
 

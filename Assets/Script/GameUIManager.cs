@@ -38,6 +38,12 @@ public class GameUIManager : MonoBehaviour
             if (arPlacementManager.tapHintPanel != null) arPlacementManager.tapHintPanel.SetActive(false);
         }
 
+        // Pastikan TouchControlUI aktif untuk mengelola mode suara/sentuh
+        if (FindFirstObjectByType<TouchControlUI>() == null)
+        {
+            gameObject.AddComponent<TouchControlUI>();
+        }
+
         splashPanel.SetActive(false);
         mainMenuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
@@ -82,6 +88,7 @@ public class GameUIManager : MonoBehaviour
     public void TriggerGameOver()
     {
         isPlaying = false;
+        if (MicDetection.instance != null) MicDetection.instance.SetTouchHolding(false);
         FindActiveGameObjects();
 
         if (arPlaneManager != null)     arPlaneManager.enabled     = false;
@@ -93,6 +100,7 @@ public class GameUIManager : MonoBehaviour
 
     public void OnRestartButtonPressed()
     {
+        if (MicDetection.instance != null) MicDetection.instance.SetTouchHolding(false);
         gameOverPanel.SetActive(false);
         FindActiveGameObjects();
         ScoreManager.instance.ResetScore(); 

@@ -467,18 +467,6 @@ MonoBehaviour:
     prefab: {fileID: 284678231718483538, guid: 7f01eccc8922dd24ca67f57167f65f33, type: 3}
     thumbnail: {fileID: 0}
     defaultColor: {r: 1, g: 1, b: 1, a: 0}
-  - characterName: AmongUs
-    prefab: {fileID: 6039041794988464550, guid: 4f4a48ee762097242b09e21613aba6a9, type: 3}
-    thumbnail: {fileID: 0}
-    defaultColor: {r: 1, g: 1, b: 1, a: 0}
-  - characterName: Hatsune Miku
-    prefab: {fileID: 1329592631723390877, guid: 42477b55ab862b9408dd1533a4a65cf5, type: 3}
-    thumbnail: {fileID: 0}
-    defaultColor: {r: 1, g: 1, b: 1, a: 0}
-  - characterName: Miku on TANK
-    prefab: {fileID: 5133247184156627236, guid: bd453b7fd9a3215448782e459f803e04, type: 3}
-    thumbnail: {fileID: 0}
-    defaultColor: {r: 1, g: 1, b: 1, a: 0}
   btnPrev: {fileID: 1716726799}
   btnNext: {fileID: 991716105}
   characterNameText: {fileID: 1009332611}
@@ -5309,6 +5297,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2103447775}
   - component: {fileID: 2103447776}
+  - component: {fileID: 2103447777}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -5343,6 +5332,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4bdf927ce0e9b46d6a016fac7172187e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MicDetection
+  currentControlMode: 0
+  instantJumpOnTouch: 0
+  initialTouchLoudness: 0.5
+  maxTouchLoudness: 3.5
+  touchChargeSpeed: 3
+  touchDecaySpeed: 15
   loudness: 0
   outputMultiplier: 3
   smoothSpeed: 5
@@ -5351,6 +5346,43 @@ MonoBehaviour:
   noiseAdaptSpeed: 0.5
   voiceAdaptSpeed: 5
   voiceDecaySpeed: 0.3
+--- !u!114 &2103447777
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2103447773}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c6e7c0d2c044378bc9314ba33c26d40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TouchControlUI
+  openSettingsButton: {fileID: 0}
+  settingsIconSprite: {fileID: 21300000, guid: 317e49b7887e14a8bbfb479c35de94d7, type: 3}
+  settingsButtonPosition: {x: 440, y: 1020}
+  settingsPanelRoot: {fileID: 0}
+  closeSettingsButton: {fileID: 0}
+  closeXButton: {fileID: 0}
+  voiceModeCardButton: {fileID: 0}
+  voiceCardBackground: {fileID: 0}
+  voiceCardBorder: {fileID: 0}
+  voiceStatusText: {fileID: 0}
+  touchModeCardButton: {fileID: 0}
+  touchCardBackground: {fileID: 0}
+  touchCardBorder: {fileID: 0}
+  touchStatusText: {fileID: 0}
+  touchPadRoot: {fileID: 0}
+  touchPadBackground: {fileID: 0}
+  touchPadTitleText: {fileID: 0}
+  touchPadSubText: {fileID: 0}
+  touchPadGlowBorder: {fileID: 0}
+  voiceActiveColor: {r: 0.0627451, g: 0.7254902, b: 0.5058824, a: 1}
+  touchActiveColor: {r: 0.9607843, g: 0.52156866, b: 0.11764706, a: 1}
+  cardInactiveColor: {r: 0.12, g: 0.15, b: 0.22, a: 0.9}
+  cardActiveVoiceColor: {r: 0.04, g: 0.28, b: 0.2, a: 0.95}
+  cardActiveTouchColor: {r: 0.35, g: 0.16, b: 0.05, a: 0.95}
+  enableFullScreenTouch: 1
 --- !u!1 &2132021167
 GameObject:
   m_ObjectHideFlags: 0

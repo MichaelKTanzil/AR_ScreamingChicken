@@ -6,6 +6,38 @@ using UnityEngine.Android;
 
 public class MicDetection : MonoBehaviour
 {
+    public enum InputControlMode
+    {
+        Voice,
+        Touch
+    }
+
+    public static MicDetection instance;
+
+    [Header("Mode Kontrol")]
+    [Tooltip("Pilih kontrol: Voice (Mikrofon) atau Touch (Layar Sentuh)")]
+    public InputControlMode currentControlMode = InputControlMode.Voice;
+
+    [Header("Emulasi Teriakan (Touch Mode)")]
+    [Tooltip("Jika aktif (centang), ayam akan LANGSUNG melompat seketika saat jari pertama kali menyentuh layar tanpa perlu menunggu charge.")]
+    public bool instantJumpOnTouch = false;
+
+    [Tooltip("Nilai loudness awal saat pertama kali menyentuh layar. Set di bawah jumpThreshold (misal 0.5f) agar maju pelan dulu saat ditahan.")]
+    public float initialTouchLoudness = 0.5f;
+
+    [Tooltip("Batas maksimum loudness saat menahan sentuhan")]
+    public float maxTouchLoudness = 3.5f;
+
+    [Tooltip("Kecepatan naiknya suara saat ditahan dari initial menuju max (charge rate per detik)")]
+    public float touchChargeSpeed = 3.0f;
+
+    [Tooltip("Kecepatan turunnya suara saat sentuhan dilepas kembali ke 0")]
+    public float touchDecaySpeed = 15f;
+
+    private bool isTouchHolding = false;
+    private float currentTouchLoudness = 0f;
+    private bool wasTouchHoldingLastFrame = false;
+
     [Header("Output Suara Final")]
     [Tooltip("Nilai ini yang dibaca oleh Ayam dan Arena.")]
     public float loudness = 0f; 
@@ -30,9 +62,20 @@ public class MicDetection : MonoBehaviour
 
     private float baseNoiseFloor; 
 
+    void Awake()
+    {
+        if (instance == null) instance = this;
+    }
+
     void Start()
     {
         baseNoiseFloor = noiseLevel; 
+
+        // Muat preferensi kontrol yang tersimpan
+        if (PlayerPrefs.HasKey("ScreamingChicken_ControlMode"))
+        {
+            currentControlMode = (InputControlMode)PlayerPrefs.GetInt("ScreamingChicken_ControlMode", 0);
+        }
 
 #if UNITY_ANDROID
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
@@ -40,6 +83,31 @@ public class MicDetection : MonoBehaviour
 #endif
         Invoke("InitMic", 1f);
     }
+
+    public void SetControlMode(InputControlMode mode)
+    {
+        currentControlMode = mode;
+        isTouchHolding = false;
+        wasTouchHoldingLastFrame = false;
+        currentTouchLoudness = 0f;
+        loudness = 0f;
+        PlayerPrefs.SetInt("ScreamingChicken_ControlMode", (int)mode);
+        PlayerPrefs.Save();
+    }
+
+    public void ToggleControlMode()
+    {
+        SetControlMode(currentControlMode == InputControlMode.Voice ? InputControlMode.Touch : InputControlMode.Voice);
+    }
+
+    public void SetTouchHolding(bool holding)
+    {
+        isTouchHolding = holding;
+    }
+
+    public bool IsTouchHolding() => isTouchHolding;
+
+    public float GetTouchLoudnessRatio() => maxTouchLoudness > 0f ? Mathf.Clamp01(currentTouchLoudness / maxTouchLoudness) : 0f;
 
     void InitMic()
     {
@@ -52,6 +120,35 @@ public class MicDetection : MonoBehaviour
 
     void Update()
     {
+        // ── MODE TOUCH SCREEN: Suara mikrofon dinonaktifkan sepenuhnya ──
+        if (currentControlMode == InputControlMode.Touch)
+        {
+            if (isTouchHolding && GameUIManager.isPlaying)
+            {
+                // Frame pertama saat ditekan/di-hold: mulai dari initialTouchLoudness agar langsung jalan pelan
+                if (!wasTouchHoldingLastFrame)
+                {
+                    currentTouchLoudness = instantJumpOnTouch ? Mathf.Max(currentTouchLoudness, initialTouchLoudness) : initialTouchLoudness;
+                }
+
+                // Semakin lama ditahan, suara emulasi semakin tinggi hingga batas max
+                currentTouchLoudness += touchChargeSpeed * Time.deltaTime;
+                currentTouchLoudness = Mathf.Min(currentTouchLoudness, maxTouchLoudness);
+            }
+            else
+            {
+                // Saat dilepas, suara turun kembali ke 0
+                currentTouchLoudness = Mathf.MoveTowards(currentTouchLoudness, 0f, touchDecaySpeed * Time.deltaTime);
+            }
+
+            wasTouchHoldingLastFrame = isTouchHolding;
+            loudness = currentTouchLoudness;
+            return; // Tidak membaca mikrofon sama sekali!
+        }
+
+        wasTouchHoldingLastFrame = false;
+
+        // ── MODE VOICE CONTROL: Deteksi RMS dari mikrofon ──
         float rawRMS = GetRMSLoudnessFromMic();
 
         if (rawRMS < noiseLevel * 2.5f)

@@ -14,8 +14,8 @@ public class ScoreManager : MonoBehaviour
     private float accumulatedDistance = 0f;
     private MicDetection mic;
     private float threshold = 0.15f;
-    private float moveSpeedMultiplier = 6f;
-    private float maxSpeed = 6f;
+    private float moveSpeedMultiplier = 3.5f;
+    private float maxSpeed = 3.8f;
 
     // [BARU] Gembok untuk menahan skor sebelum arena diletakkan
     private bool isArenaPlaced = false;
