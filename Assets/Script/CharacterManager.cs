@@ -75,7 +75,7 @@ public class CharacterManager : MonoBehaviour
     // Kasih tau ChickenCustomizePanel buat update preview model
     void NotifyPreview()
     {
-        ChickenCustomizePanel panel = FindObjectOfType<ChickenCustomizePanel>();
+        ChickenCustomizePanel panel = Object.FindFirstObjectByType<ChickenCustomizePanel>();
         if (panel != null) panel.UpdatePreviewModel();
     }
 
@@ -88,7 +88,7 @@ public class CharacterManager : MonoBehaviour
     public static void ApplyCharacterInScene()
     {
         ChickenController oldChicken = null;
-        foreach (var chicken in FindObjectsOfType<ChickenController>())
+        foreach (var chicken in Object.FindObjectsByType<ChickenController>(FindObjectsSortMode.None))
         {
             if (Vector3.Distance(chicken.transform.position, new Vector3(500f, 0f, 500f)) > 10f)
             {

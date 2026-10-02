@@ -9,7 +9,8 @@ public class ScoreManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
 
     [Header("Pengaturan Score")]
-    public float scoreMultiplier = 10f;
+    [Tooltip("Pengali skor jarak tempuh. Diset 1f agar skor maksimal di kisaran ratusan untuk kemudahan sistem hadiah.")]
+    public float scoreMultiplier = 1f;
 
     private float accumulatedDistance = 0f;
     private MicDetection mic;
@@ -17,7 +18,7 @@ public class ScoreManager : MonoBehaviour
     private float moveSpeedMultiplier = 3.5f;
     private float maxSpeed = 3.8f;
 
-    // [BARU] Gembok untuk menahan skor sebelum arena diletakkan
+    // [BARU] Gembok untuk menahan skor sebelum arena diletakkbs
     private bool isArenaPlaced = false;
 
     void Awake()
@@ -31,6 +32,8 @@ public class ScoreManager : MonoBehaviour
         GameObject gm = GameObject.Find("GameManager");
         if (gm != null) mic = gm.GetComponent<MicDetection>();
     }
+
+    private int bonusScore = 0;
 
     void Update()
     {
@@ -51,15 +54,32 @@ public class ScoreManager : MonoBehaviour
             accumulatedDistance += calculatedSpeed * Time.deltaTime;
         }
 
+        UpdateScoreDisplay();
+    }
+
+    public void AddBonusScore(int bonus)
+    {
+        bonusScore += bonus;
+        UpdateScoreDisplay();
+    }
+
+    public int GetCurrentScore()
+    {
+        return Mathf.FloorToInt(accumulatedDistance * scoreMultiplier) + bonusScore;
+    }
+
+    private void UpdateScoreDisplay()
+    {
         if (scoreText != null)
         {
-            scoreText.text = Mathf.FloorToInt(accumulatedDistance * scoreMultiplier).ToString();
+            scoreText.text = GetCurrentScore().ToString();
         }
     }
 
     public void ResetScore()
     {
         accumulatedDistance = 0f;
+        bonusScore = 0;
         // isArenaPlaced = false; // Kunci kembali gemboknya saat game di-reset
         if (scoreText != null) scoreText.text = "0";
     }

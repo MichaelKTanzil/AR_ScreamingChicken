@@ -113,11 +113,17 @@ MonoBehaviour:
   blockPrefab: {fileID: 2485381884663636665, guid: c4b0132d835944e20aa943df8f419e9a, type: 3}
   spawnPoint: {fileID: 7855719105769304245}
   cactusPrefab: {fileID: 2507039110070351463, guid: 06b0b2fec901a46a5b79d7ac5cfdc821, type: 3}
-  cactusChance: 0
-  minBlocksPerChunk: 2
-  maxBlocksPerChunk: 10
-  minGap: 0.4
-  maxGap: 2
+  cactusChunkChance: 0.5
+  cactusChance: 0.5
+  maxCactusPerChunk: 1
+  minCactusSpacing: 4
+  cornPrefab: {fileID: 0}
+  cornChance: 0.15
+  spawnCornInGap: 1
+  minBlocksPerChunk: 5
+  maxBlocksPerChunk: 12
+  minGap: 0.45
+  maxGap: 1.05
   blockSize: 0.2
 --- !u!1 &5668082967175462629
 GameObject:
@@ -148,7 +154,7 @@ Transform:
   m_GameObject: {fileID: 5668082967175462629}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.39, y: -0.091, z: 0}
+  m_LocalPosition: {x: 0.64, y: -0.091, z: 0}
   m_LocalScale: {x: 6, y: 0.1, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -169,7 +175,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5668082967175462629}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

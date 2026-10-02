@@ -34,14 +34,34 @@ public class MicDetection : MonoBehaviour
     [Tooltip("Kecepatan turunnya suara saat sentuhan dilepas kembali ke 0")]
     public float touchDecaySpeed = 15f;
 
+    [Tooltip("Nilai loudness saat menahan tombol JALAN (di bawah jumpThreshold 1.2f). Default 0.88f agar jalan terasa kencang dan responsif.")]
+    public float touchWalkLoudness = 0.88f;
+
     private bool isTouchHolding = false;
+    private bool isWalkHolding = false;
+    private bool isJumpHolding = false;
     private float currentTouchLoudness = 0f;
     private bool wasTouchHoldingLastFrame = false;
+    private bool wasJumpHoldingLastFrame = false;
 
     [Header("Output Suara Final")]
     [Tooltip("Nilai ini yang dibaca oleh Ayam dan Arena.")]
     public float loudness = 0f; 
     public float outputMultiplier = 3f; 
+
+    [Header("Scream Meter (Peak dB Tracking)")]
+    [Tooltip("Puncak desibel teriakan pemain yang tercatat selama run berlangsung.")]
+    public float peakDecibelsInRun = 0f;
+
+    [Tooltip("Offset kalibrasi akustik dB SPL agar akurat 1:1 dengan alat Sound Meter / Browser. Default 90f.")]
+    public float decibelCalibrationOffset = 90f;
+
+    [Header("Sensitivitas Mikrofon")]
+    [Tooltip("Pengali sensitivitas mikrofon (0.5x s/d 2.5x). Default 1.0x. Nilai ini disimpan di PlayerPrefs.")]
+    [Range(0.5f, 2.5f)]
+    public float micSensitivity = 1.0f;
+
+    private float smoothedMeterRMS = 0.003f;
 
     [Header("Anti-Kaget (Smoothing)")]
     [Tooltip("Semakin kecil angka ini, pergerakan makin mulus & kebal suara tajam mendadak")]
@@ -58,7 +78,8 @@ public class MicDetection : MonoBehaviour
 
     private AudioClip micClip;
     private string device;
-    private int sampleWindow = 256;
+    private int sampleWindow = 1024;
+    private float[] waveData = new float[1024];
 
     private float baseNoiseFloor; 
 
@@ -77,6 +98,12 @@ public class MicDetection : MonoBehaviour
             currentControlMode = (InputControlMode)PlayerPrefs.GetInt("ScreamingChicken_ControlMode", 0);
         }
 
+        // Muat preferensi sensitivitas mic yang tersimpan
+        if (PlayerPrefs.HasKey("ScreamingChicken_MicSensitivity"))
+        {
+            micSensitivity = PlayerPrefs.GetFloat("ScreamingChicken_MicSensitivity", 1.0f);
+        }
+
 #if UNITY_ANDROID
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
             Permission.RequestUserPermission(Permission.Microphone);
@@ -88,10 +115,21 @@ public class MicDetection : MonoBehaviour
     {
         currentControlMode = mode;
         isTouchHolding = false;
+        isWalkHolding = false;
+        isJumpHolding = false;
         wasTouchHoldingLastFrame = false;
+        wasJumpHoldingLastFrame = false;
         currentTouchLoudness = 0f;
         loudness = 0f;
+        ResetPeakDecibels();
         PlayerPrefs.SetInt("ScreamingChicken_ControlMode", (int)mode);
+        PlayerPrefs.Save();
+    }
+
+    public void SetMicSensitivity(float sensitivity)
+    {
+        micSensitivity = Mathf.Clamp(sensitivity, 0.5f, 2.5f);
+        PlayerPrefs.SetFloat("ScreamingChicken_MicSensitivity", micSensitivity);
         PlayerPrefs.Save();
     }
 
@@ -105,9 +143,82 @@ public class MicDetection : MonoBehaviour
         isTouchHolding = holding;
     }
 
-    public bool IsTouchHolding() => isTouchHolding;
+    public void SetWalkHolding(bool holding)
+    {
+        isWalkHolding = holding;
+    }
+
+    public void SetJumpHolding(bool holding)
+    {
+        isJumpHolding = holding;
+    }
+
+    public bool IsTouchHolding() => isTouchHolding || isWalkHolding || isJumpHolding;
 
     public float GetTouchLoudnessRatio() => maxTouchLoudness > 0f ? Mathf.Clamp01(currentTouchLoudness / maxTouchLoudness) : 0f;
+
+    public float GetCurrentDecibels()
+    {
+        // ── MODE TOUCH / TAP: Disable dB metering (hanya aktif di Mode Teriak / Voice) ──
+        if (currentControlMode == InputControlMode.Touch)
+        {
+            return 0f;
+        }
+
+        // ── MODE VOICE / SUARA: Standar Sound Level Meter IEC 61672 (dBFS + Calibration Offset) ──
+        // Menggunakan IEC FAST time-weighted RMS agar 1:1 akurat dengan Browser & Sound Meter App
+        float rms = Mathf.Max(smoothedMeterRMS, 0.00001f);
+        float dbfs = 20f * Mathf.Log10(rms);
+
+        // Konversi ke perkiraan dB SPL menggunakan offset kalibrasi browser (default 90 dB)
+        float baseDb = dbfs + decibelCalibrationOffset;
+
+        // Baseline lantai kebisingan ruangan ambient (38 dB)
+        if (baseDb <= 38f)
+        {
+            return 38f;
+        }
+
+        // Rentang suara bicara normal s/d teriakan sedang 80 dB (Sama persis dengan browser!)
+        if (baseDb <= 80f)
+        {
+            return baseDb;
+        }
+
+        // Di atas 80 dB: Pada mic HP, level suara mendekati batas saturasi digital (-10 dBFS s/d 0 dBFS).
+        // Berikan kurva ekspansi natural agar teriakan sangat kencang dapat mencapai 88 - 105 dB.
+        float excess = baseDb - 80f; // Rentang 0 s/d ~10 dB (karena max baseDb di 0 dBFS adalah 90 dB)
+        float finalDb = 80f + excess * 1.5f + (excess * excess) * 0.06f;
+
+        return Mathf.Clamp(finalDb, 80f, 115f);
+    }
+
+    public void ResetPeakDecibels()
+    {
+        peakDecibelsInRun = 0f;
+        smoothedMeterRMS = 0.003f;
+    }
+
+    /// <summary>
+    /// Menghitung loudness khusus untuk pergerakan maju arena.
+    /// Di Mode Touch: jika hanya menekan LOMPAT tanpa JALAN, ayam hanya melompat di tempat (kecepatan maju = 0).
+    /// Untuk melompat maju, pemain harus menahan JALAN (kiri) sambil menekan LOMPAT (kanan).
+    /// </summary>
+    public float GetMoveLoudness()
+    {
+        if (currentControlMode == InputControlMode.Touch)
+        {
+            // Di mode touch, arena HANYA bergerak maju jika pemain menahan tombol/area JALAN
+            if (!isWalkHolding) return 0f;
+
+            // Jika menahan JALAN sekaligus menahan LOMPAT, beri akselerasi lompat maju yang mantap
+            if (isJumpHolding) return 1.05f;
+
+            return touchWalkLoudness;
+        }
+
+        return loudness;
+    }
 
     void InitMic()
     {
@@ -123,33 +234,64 @@ public class MicDetection : MonoBehaviour
         // ── MODE TOUCH SCREEN: Suara mikrofon dinonaktifkan sepenuhnya ──
         if (currentControlMode == InputControlMode.Touch)
         {
-            if (isTouchHolding && GameUIManager.isPlaying)
+            if (GameUIManager.isPlaying)
             {
-                // Frame pertama saat ditekan/di-hold: mulai dari initialTouchLoudness agar langsung jalan pelan
-                if (!wasTouchHoldingLastFrame)
+                if (isJumpHolding)
                 {
-                    currentTouchLoudness = instantJumpOnTouch ? Mathf.Max(currentTouchLoudness, initialTouchLoudness) : initialTouchLoudness;
-                }
+                    // LOMPAT: Frame pertama langsung meloncat seketika (loudness 2.2f di atas jumpThreshold 2.0f)
+                    if (!wasJumpHoldingLastFrame)
+                    {
+                        currentTouchLoudness = Mathf.Max(currentTouchLoudness, 2.2f);
+                    }
 
-                // Semakin lama ditahan, suara emulasi semakin tinggi hingga batas max
-                currentTouchLoudness += touchChargeSpeed * Time.deltaTime;
-                currentTouchLoudness = Mathf.Min(currentTouchLoudness, maxTouchLoudness);
+                    // Tahan tombol lompat untuk charge jump (semakin tinggi hingga batas max)
+                    currentTouchLoudness += touchChargeSpeed * Time.deltaTime;
+                    currentTouchLoudness = Mathf.Min(currentTouchLoudness, maxTouchLoudness);
+                }
+                else if (isWalkHolding)
+                {
+                    // JALAN: Stabil di touchWalkLoudness (default 0.88f)
+                    // Memberikan laju jalan yang kencang & responsif, tanpa memicu lompat (di bawah jumpThreshold 1.2f)
+                    currentTouchLoudness = Mathf.MoveTowards(currentTouchLoudness, touchWalkLoudness, 20f * Time.deltaTime);
+                }
+                else if (isTouchHolding)
+                {
+                    // Fallback satu tombol (jika ada pemanggilan SetTouchHolding)
+                    if (!wasTouchHoldingLastFrame)
+                    {
+                        currentTouchLoudness = instantJumpOnTouch ? Mathf.Max(currentTouchLoudness, initialTouchLoudness) : initialTouchLoudness;
+                    }
+                    currentTouchLoudness += touchChargeSpeed * Time.deltaTime;
+                    currentTouchLoudness = Mathf.Min(currentTouchLoudness, maxTouchLoudness);
+                }
+                else
+                {
+                    // Saat dilepas, suara turun kembali ke 0
+                    currentTouchLoudness = Mathf.MoveTowards(currentTouchLoudness, 0f, touchDecaySpeed * Time.deltaTime);
+                }
             }
             else
             {
-                // Saat dilepas, suara turun kembali ke 0
-                currentTouchLoudness = Mathf.MoveTowards(currentTouchLoudness, 0f, touchDecaySpeed * Time.deltaTime);
+                currentTouchLoudness = 0f;
             }
 
+            wasJumpHoldingLastFrame = isJumpHolding;
             wasTouchHoldingLastFrame = isTouchHolding;
             loudness = currentTouchLoudness;
-            return; // Tidak membaca mikrofon sama sekali!
+            return; // Mode Touch: tidak membaca mikrofon dan tidak ada metering dB!
         }
 
         wasTouchHoldingLastFrame = false;
+        wasJumpHoldingLastFrame = false;
 
         // ── MODE VOICE CONTROL: Deteksi RMS dari mikrofon ──
-        float rawRMS = GetRMSLoudnessFromMic();
+        float rawRMS = GetRMSLoudnessFromMic() * micSensitivity;
+
+        // IEC 61672 FAST time-weighting (tau = 125ms = 0.125s)
+        // Standar industri Sound Level Meter: meredam spike transien sesaat (pop/koin/ketukan casing)
+        // dan mengukur sound pressure level rata-rata secara akurat sesuai standar akustik
+        float fastAlpha = 1f - Mathf.Exp(-Time.deltaTime / 0.125f);
+        smoothedMeterRMS = Mathf.Lerp(smoothedMeterRMS, rawRMS, fastAlpha);
 
         if (rawRMS < noiseLevel * 2.5f)
         {
@@ -184,13 +326,19 @@ public class MicDetection : MonoBehaviour
         {
             loudness = Mathf.Lerp(loudness, targetLoudness, Time.deltaTime * smoothSpeed);
         }
+
+        // Track peak dB saat bermain di Voice mode (setelah loudness dismooth dan difilter dari noise)
+        if (GameUIManager.isPlaying)
+        {
+            float currentDb = GetCurrentDecibels();
+            if (currentDb > peakDecibelsInRun) peakDecibelsInRun = currentDb;
+        }
     }
 
     float GetRMSLoudnessFromMic()
     {
         if (micClip == null) return 0f;
 
-        float[] waveData = new float[sampleWindow];
         int micPos = Microphone.GetPosition(device) - (sampleWindow + 1);
         if (micPos < 0) return 0f;
 

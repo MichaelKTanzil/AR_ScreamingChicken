@@ -64,6 +64,8 @@ public class GameUIManager : MonoBehaviour
         splashPanel.SetActive(false);
         mainMenuPanel.SetActive(false);
 
+        if (MicDetection.instance != null) MicDetection.instance.ResetPeakDecibels();
+
         if (arPlaneManager != null)     arPlaneManager.enabled     = true;
         if (arPlacementManager != null) arPlacementManager.enabled = true;
 
@@ -72,10 +74,10 @@ public class GameUIManager : MonoBehaviour
 
     private void FindActiveGameObjects()
     {
-        activeLevelGenerator = GameObject.FindObjectOfType<LevelGenerator>()?.gameObject;
+        activeLevelGenerator = Object.FindFirstObjectByType<LevelGenerator>()?.gameObject;
         
         activePlayer = null;
-        foreach (var player in GameObject.FindObjectsOfType<ChickenController>())
+        foreach (var player in Object.FindObjectsByType<ChickenController>(FindObjectsSortMode.None))
         {
             if (Vector3.Distance(player.transform.position, new Vector3(500f, 0f, 500f)) > 10f)
             {
@@ -87,6 +89,16 @@ public class GameUIManager : MonoBehaviour
 
     public void TriggerGameOver()
     {
+        // Tangkap satu sampel desibel terakhir barangkali pemain teriak histeris saat mati (hanya mode Suara/Voice)
+        if (MicDetection.instance != null && MicDetection.instance.currentControlMode == MicDetection.InputControlMode.Voice)
+        {
+            float lastMomentDb = MicDetection.instance.GetCurrentDecibels();
+            if (lastMomentDb > MicDetection.instance.peakDecibelsInRun)
+            {
+                MicDetection.instance.peakDecibelsInRun = lastMomentDb;
+            }
+        }
+
         isPlaying = false;
         if (MicDetection.instance != null) MicDetection.instance.SetTouchHolding(false);
         FindActiveGameObjects();
@@ -96,18 +108,31 @@ public class GameUIManager : MonoBehaviour
         if (BGMManager.instance != null) BGMManager.instance.SetVolume(0.05f);
 
         gameOverPanel.SetActive(true);
+
+        // Tampilkan badge Scream Meter rekor desibel tepat di atas tanda Game Over
+        GameOverScreamMeter meter = gameOverPanel.GetComponent<GameOverScreamMeter>();
+        if (meter == null) meter = gameOverPanel.AddComponent<GameOverScreamMeter>();
+        meter.ShowMeter();
     }
 
     public void OnRestartButtonPressed()
     {
-        if (MicDetection.instance != null) MicDetection.instance.SetTouchHolding(false);
+        if (MicDetection.instance != null)
+        {
+            MicDetection.instance.SetTouchHolding(false);
+            MicDetection.instance.ResetPeakDecibels();
+        }
+
+        GameOverScreamMeter meter = gameOverPanel.GetComponent<GameOverScreamMeter>();
+        if (meter != null) meter.HideMeter();
+
         gameOverPanel.SetActive(false);
         FindActiveGameObjects();
         ScoreManager.instance.ResetScore(); 
 
         if (activeLevelGenerator != null && activePlayer != null)
         {
-            ArenaMover[] movers = GameObject.FindObjectsOfType<ArenaMover>();
+            ArenaMover[] movers = Object.FindObjectsByType<ArenaMover>(FindObjectsSortMode.None);
             foreach (ArenaMover mover in movers) mover.ResetPosisi();
 
             activeLevelGenerator.GetComponent<LevelGenerator>().ResetLevel();

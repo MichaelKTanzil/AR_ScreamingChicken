@@ -12,7 +12,8 @@ public class ARPlacementManager : MonoBehaviour
     public GameObject arenaPrefab;
 
     [Header("Pengaturan Posisi")]
-    public float kemiringanArena = -30f;
+    [Tooltip("Rotasi offset arena dalam derajat. Nilai -90 membuat lintasan (sumbu +X) membentang lurus ke depan menghadap kamera.")]
+    public float kemiringanArena = -90f;
 
     [Header("AR Hint UI")]
     public GameObject hintPanel;
@@ -73,11 +74,18 @@ public class ARPlacementManager : MonoBehaviour
             {
                 Pose hitPose = hits[0].pose;
 
-                Vector3    posisiKamera  = Camera.main.transform.position;
-                Vector3    arahKeKamera  = posisiKamera - hitPose.position;
-                arahKeKamera.y = 0;
+                // Gunakan arah hadap horizontal kamera agar rotasi arena selalu konsisten lurus ke depan pandangan pemain
+                // dan TIDAK miring/terdistorsi hanya karena pemain mengetuk sisi kiri atau kanan layar
+                Vector3 cameraForward = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
+                cameraForward.y = 0;
+                if (cameraForward.sqrMagnitude < 0.001f && Camera.main != null)
+                {
+                    cameraForward = Camera.main.transform.up;
+                    cameraForward.y = 0;
+                }
+                cameraForward.Normalize();
 
-                Quaternion rotasiDasar   = Quaternion.LookRotation(-arahKeKamera);
+                Quaternion rotasiDasar   = Quaternion.LookRotation(cameraForward);
                 Quaternion rotasiMiring  = rotasiDasar * Quaternion.Euler(0, kemiringanArena, 0);
 
                 spawnedArena = Instantiate(arenaPrefab, hitPose.position, rotasiMiring);

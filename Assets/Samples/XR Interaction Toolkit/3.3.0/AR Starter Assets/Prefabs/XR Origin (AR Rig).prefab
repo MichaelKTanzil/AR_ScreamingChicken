@@ -311,7 +311,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ARPlacementManager
   arenaPrefab: {fileID: 5699849036342120606, guid: 76a592c3994414078a90eb985efd0755, type: 3}
-  kemiringanArena: -30
+  kemiringanArena: -90
 --- !u!1 &2512387470890420964
 GameObject:
   m_ObjectHideFlags: 0

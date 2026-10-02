@@ -20,11 +20,12 @@ public class ArenaMover : MonoBehaviour
 
     void Update()
     {
-        if (!GameUIManager.isPlaying) return; 
+        if (!GameUIManager.isPlaying || mic == null) return; 
 
-        if (mic.loudness > threshold)
+        float moveLoudness = mic.GetMoveLoudness();
+        if (moveLoudness > threshold)
         {
-            float calculatedSpeed = (mic.loudness - threshold) * moveSpeedMultiplier;
+            float calculatedSpeed = (moveLoudness - threshold) * moveSpeedMultiplier;
             calculatedSpeed = Mathf.Clamp(calculatedSpeed, 0f, maxSpeed);
             transform.Translate(-calculatedSpeed * Time.deltaTime, 0, 0); 
         }
